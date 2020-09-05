@@ -26,6 +26,8 @@ use std::time::SystemTime;
 use tonic::{transport::Server, Request, Response, Status};
 use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use serde::{Deserialize, Serialize};
+use log::{info};
+use env_logger;
 use user::user_service_server::{UserService, UserServiceServer};
 use user::{
     User,
@@ -61,19 +63,19 @@ impl MainUserService {
     }
 
     async fn create_table(&self) {
-        println!("Checking if table exists");
+        info!("Checking if table exists");
         match self.client.describe_table(DescribeTableInput{
             table_name: "date-app-user-service".to_string(),
         }).await {
             Ok(_) => {
-                println!("Table exists");
+                info!("Table exists");
             },
             Err(err) => {
                 match err {
                     RusotoError::Service(err) => {
                         match err {
                             DescribeTableError::ResourceNotFound(_) => {
-                                println!("Table does not exist: Creating");
+                                info!("Table does not exist: Creating");
                                 // Create table
                                 let create_table_input = CreateTableInput {
                                     attribute_definitions: vec![
@@ -214,17 +216,17 @@ impl UserService for MainUserService {
                     RusotoError::Service(err) => {
                        match err {
                            PutItemError::ConditionalCheckFailed(err) => {
-                                println!("conditional err: {}", err);
+                                info!("conditional err: {}", err);
                                 Err(Status::already_exists("user already exists"))
                            }
                            _ => {
-                            println!("Err creating user: {}", err);
+                            info!("Err creating user: {}", err);
                             return Err(Status::internal("internal server error"));
                            }
                        }
                     },
                     _ => {
-                        println!("Err creating user: {}", err);
+                        info!("Err creating user: {}", err);
                         return Err(Status::internal("internal server error"));
                     }
                 }
@@ -240,7 +242,7 @@ impl UserService for MainUserService {
         let user = match self.get_user(auth.username).await {
             Ok(user) => user,
             Err(err) => {
-                println!("Err getting user: {}", err);
+                info!("Err getting user: {}", err);
                 return Err(Status::internal("internal server error"));
             }
         };
@@ -260,6 +262,8 @@ impl UserService for MainUserService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    info!("Starting User-Service");
     let addr = "127.0.0.1:8080".parse().unwrap();
 
     let region = Region::Custom{
@@ -271,7 +275,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let user_service = MainUserService::new(client);
     user_service.create_table().await;
 
-    println!("Server listening on {}", addr);
+    info!("Server listening on {}", addr);
 
     let service = UserServiceServer::new(user_service);
     Server::builder()

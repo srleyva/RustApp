@@ -10,9 +10,11 @@ services:
     depends_on:
     - dynamodb-local
     build: .
+    image: 439000603071.dkr.ecr.us-east-2.amazonaws.com/user-service
     container_name: user-service
     ports:
     - "8080:8080"
     environment:
+      RUST_LOG: "debug"
       AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
       AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'

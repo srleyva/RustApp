@@ -18,6 +18,8 @@ prost = "0.6"
 tonic = {version="0.3",features = ["tls"]}
 tokio = {version="0.2",features = ["stream", "macros"]}
 futures = "0.3"
+log = "0.4"
+env_logger = "0.7"
 bcrypt = "0.8"
 rand = "0.7"
 jsonwebtoken = "7.2"
