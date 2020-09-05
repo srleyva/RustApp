@@ -1,0 +1,30 @@
+[package]
+name = "user-service"
+version = "0.1.0"
+authors = ["Stephen Leyva <sleyva1297@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+uuid = { version = "0.8", features = ["serde", "v4"] }
+prost = "0.6"
+tonic = {version="0.3",features = ["tls"]}
+tokio = {version="0.2",features = ["stream", "macros"]}
+futures = "0.3"
+bcrypt = "0.8"
+rand = "0.7"
+jsonwebtoken = "7.2"
+serde = "1.0"
+base64 = "0.12"
+rusoto_dynamodb = "0.45"
+rusoto_core = "0.45"
+
+[build-dependencies]
+tonic-build = "0.3.1"

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package user_svc;
+
+service UserService {
+  rpc Auth (AuthRequest) returns (AuthResponse);
+  rpc NewUser(NewUserRequest) returns (NewUserResponse);
+}
+
+message User {
+  string first_name = 1;
+  string last_name = 2;
+  string username = 3;
+  string password = 4;
+  string uid = 5;
+}
+
+message AuthRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string jwt = 1;
+}
+
+message NewUserRequest {
+  User user = 1;
+}
+
+message NewUserResponse {}
