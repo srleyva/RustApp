@@ -23,6 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
         },
     );
+    let response = client.new_user(new_request).await?.into_inner();
+    println!("RESPONSE={:?}", response);
 
     let auth_request = tonic::Request::new(
         AuthRequest{
@@ -31,17 +33,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
 
-    let auth_request = tonic::Request::new(
+    let response = client.auth(auth_request).await?.into_inner();
+    println!("RESPONSE={:?}", response);
+
+    let bad_auth_request = tonic::Request::new(
         AuthRequest{
             username: "sleyva".to_string(),
             password: "bad".to_string(),
         }
     );
 
-// sending request and waiting for response
-    let response = client.new_user(new_request).await?.into_inner();
-    println!("RESPONSE={:?}", response);
-    let response = client.auth(auth_request).await?.into_inner();
+    let response = client.auth(bad_auth_request).await?.into_inner();
     println!("RESPONSE={:?}", response);
     Ok(())
 }
