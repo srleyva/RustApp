@@ -1,3 +1,4 @@
 ./target
+/test
 Dockerfile
 docker-compose.yaml

@@ -236,9 +236,13 @@ impl UserService for MainUserService {
     }
 
     async fn auth(&self, request: Request<AuthRequest>) -> Result<Response<AuthResponse>, Status> {
-        println!("New Auth: {:?}", request);
-
         let auth = request.into_inner();
+        info!("Auth: Username: {} Password: ****", auth.username);
+
+        if auth.username.is_empty() || auth.password.is_empty() {
+            return Err(Status::permission_denied("Please provide username or password"));
+        }
+
         let user = match self.get_user(auth.username).await {
             Ok(user) => user,
             Err(err) => {
@@ -254,6 +258,7 @@ impl UserService for MainUserService {
             return Err(Status::permission_denied("Bad Username or password"));
         }
         
+        info!("Auth: Username: {} Successful", user.username);
         Ok(Response::new(AuthResponse{
             jwt: MainUserService::create_jwt_token(user.uid),
         }))
@@ -264,7 +269,7 @@ impl UserService for MainUserService {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     info!("Starting User-Service");
-    let addr = "127.0.0.1:8080".parse().unwrap();
+    let addr = "0.0.0.0:8080".parse().unwrap();
 
     let region = Region::Custom{
         name: "test-region-1".to_owned(),
