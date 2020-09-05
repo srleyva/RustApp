@@ -9,8 +9,4 @@ ADD user_pb2.py  .
 ADD user_pb2_grpc.py .
 ADD test_user_service.py .
 
-RUN apt install coreutils
-
-RUN which sleep
-
 ENTRYPOINT ["python3", "test_user_service.py"]

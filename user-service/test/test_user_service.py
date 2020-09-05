@@ -85,4 +85,4 @@ def test_new_user(client, new_user_request, expected_status):
 
 if __name__ == '__main__':
     time.sleep(3)
-    pytest.main()
+    pytest.main(["--verbose"])
