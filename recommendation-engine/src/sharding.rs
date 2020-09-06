@@ -1,8 +1,40 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use s2::cellid::CellID;
+
+use crate::location::{cell_id_from_long_lat, S2List};
 
 const MIN_SHARD: i32 = 40;
 const MAX_SHARD: i32 = 100;
+
+pub struct Shards {
+    storage_level: u64,
+    shards: Vec<Shard>,
+}
+
+impl Shards {
+
+    pub fn new(storage_level: u64) -> Self {
+        let cells = S2List::new(storage_level).into_list();
+        let shards = generate_shards(&cells);
+
+        Self{
+            storage_level,
+            shards
+        }
+    }
+    
+    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&Shard> {
+        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level);
+        // Only 100 shards at most, not important to optimize
+        for geoshard in &self.shards {
+            // Check if cell_id in shard
+            if cell_id >= geoshard.ranges.start.unwrap() && cell_id < geoshard.ranges.end.unwrap() {
+                return Some(&geoshard);
+            }
+        }
+        None
+    }
+}
 
 #[derive(Debug)]
 pub struct Ranges {
@@ -17,7 +49,7 @@ pub struct Shard {
     cell_score: i32
 }
 
-pub fn generate_shards(cell_load: &HashMap<CellID, i32>) -> Vec<Shard> {
+pub fn generate_shards(cell_load: &BTreeMap<CellID, i32>) -> Vec<Shard> {
     let total: i32 = cell_load.into_iter()
         .fold(0, |sum, i| sum + i.1);
 
@@ -30,7 +62,7 @@ pub fn generate_shards(cell_load: &HashMap<CellID, i32>) -> Vec<Shard> {
     for container_size in min_size..=max_size {
         let mut shard = Shard {
             ranges: Ranges {
-                start: None,
+                start: Some(*cell_load.into_iter().next().unwrap().0),
                 end: None,
             },
             cell_count: 0,
@@ -46,7 +78,7 @@ pub fn generate_shards(cell_load: &HashMap<CellID, i32>) -> Vec<Shard> {
                 geo_shards.push(shard);
                 shard = Shard {
                     ranges: Ranges {
-                        start: None,
+                        start: Some(*cell_id),
                         end: None,
                     },
                     cell_count: 0,
@@ -115,6 +147,17 @@ mod test {
     }
 
     #[test]
+    fn test_shard_search() {
+        let shards = Shards::new(3);
+        let geoshard = shards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
+
+        let cell_id = cell_id_from_long_lat(34.181061, -103.345177, 4);
+
+        let range = geoshard.ranges.start.unwrap()..geoshard.ranges.end.unwrap();
+        assert!(range.contains(&cell_id));
+    }
+
+    #[test]
     fn test_generate_shards() {
         let mock_cell_load = generate_random_cell_load();
         let shards = generate_shards(&mock_cell_load);
@@ -122,15 +165,14 @@ mod test {
         if (shards.len() as i32) > MAX_SHARD || (shards.len() as i32) < MIN_SHARD {
             panic!("Shard len out of range: {}", shards.len());
         }
-
     }
 
-    fn generate_random_cell_load() -> HashMap<CellID, i32> {
-        let mut mock_values = HashMap::new();
+    fn generate_random_cell_load() -> BTreeMap<CellID, i32> {
+        let mut mock_values = BTreeMap::new();
         let mut rng = rand::thread_rng();
 
         // Ocean
-        for _ in 0..=10000 {
+        for _ in 0..=1000 {
             let rand_lat = rng.gen_range(0.000000, 2000.000000);
             let rand_long = rng.gen_range(0.000000, 2000.000000);
 
@@ -140,7 +182,7 @@ mod test {
         }
 
         // Small Cities
-        for _ in 0..=1000 {
+        for _ in 0..=100 {
             let rand_lat = rng.gen_range(0.000000, 2000.000000);
             let rand_long = rng.gen_range(0.000000, 2000.000000);
 
@@ -150,7 +192,7 @@ mod test {
         }
 
         // Medium Cities
-        for _ in 0..=500 {
+        for _ in 0..=50 {
             let rand_lat = rng.gen_range(0.000000, 2000.000000);
             let rand_long = rng.gen_range(0.000000, 2000.000000);
 
@@ -161,7 +203,7 @@ mod test {
         }
 
         // Big Cities
-        for _ in 0..=100 {
+        for _ in 0..=10 {
             let rand_lat = rng.gen_range(0.000000, 2000.000000);
             let rand_long = rng.gen_range(0.000000, 2000.000000);
 

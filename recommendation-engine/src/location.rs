@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::thread;
 use rand::Rng;
 
@@ -8,7 +8,7 @@ use s2::cellid::CellID;
 use s2::latlng::LatLng;
 
 macro_rules! ll {
-    ($lat:expr, $lng:expr) => {
+    ($lng:expr, $lat:expr) => {
         LatLng {
             lat: s1::Deg($lat).into(),
             lng: s1::Deg($lng).into(),
@@ -27,7 +27,7 @@ impl S2List {
         }
     }
 
-    fn recursive_list(&self, cell_id: CellID, seen: &mut HashMap<CellID, i32>) {
+    fn recursive_list(&self, cell_id: CellID, seen: &mut BTreeMap<CellID, i32>) {
         let neighbors = cell_id.vertex_neighbors(self.storage_level);
         for neighbor in neighbors {
             match seen.get(&neighbor) {
@@ -41,9 +41,9 @@ impl S2List {
         }
     }
 
-    pub fn into_list(self) -> HashMap<CellID, i32> {
+    pub fn into_list(self) -> BTreeMap<CellID, i32> {
         let starting_cell_id = CellID::from(ll!(0.000000,0.000000));
-        let mut seen = HashMap::new();
+        let mut seen = BTreeMap::new();
 
         let child = thread::Builder::new()
         .stack_size(50 * 1024 * 1024) // 45mb required for stack, 50 for the num gen
@@ -57,6 +57,11 @@ impl S2List {
 
         child.join().unwrap()
     }
+}
+
+pub fn cell_id_from_long_lat(long: f64, lat: f64, storage_level: u64) -> CellID {
+    let long_lat = ll!(long, lat);
+    CellID::from(long_lat).parent(storage_level)
 }
 
 #[cfg(test)]
