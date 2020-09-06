@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use s2::cellid::CellID;
 
 const MIN_SHARD: i32 = 40;
 const MAX_SHARD: i32 = 100;
@@ -11,8 +13,9 @@ pub fn standard_deviation(shards: &Vec<i32>) -> f64 {
     varience.sqrt()
 }
 
-pub fn generate_shards(cell_load: &Vec<i32>) -> Vec<i32> {
-    let total: i32 = cell_load.into_iter().sum::<i32>();
+pub fn generate_shards(cell_load: &HashMap<CellID, i32>) -> Vec<i32> {
+    let total: i32 = cell_load.into_iter()
+        .fold(0, |sum, i| sum + i.1);
 
     let max_size = total / MIN_SHARD;
     let min_size = total / MAX_SHARD;
@@ -23,7 +26,7 @@ pub fn generate_shards(cell_load: &Vec<i32>) -> Vec<i32> {
     for i in min_size..max_size {
         let mut current_sum = 0;
         let mut geo_shards = vec![];
-        for cell_score in cell_load {
+        for (_, cell_score) in cell_load {
             if current_sum + cell_score < i {
                 current_sum += cell_score;
             } else {
@@ -51,19 +54,43 @@ mod test {
 
     use rand::Rng;
 
+    use s2::s1;
+    use s2::cellid::CellID;
+    use s2::latlng::LatLng;
+
+    macro_rules! ll {
+        ($lat:expr, $lng:expr) => {
+            LatLng {
+                lat: s1::Deg($lat).into(),
+                lng: s1::Deg($lng).into(),
+            }
+        };
+    }
+
     #[test]
     fn test_generate_shards() {
         let mock_cell_load = generate_random_cell_load(100);
         let shards = generate_shards(&mock_cell_load);
-
+        
         if (shards.len() as i32) > MAX_SHARD || (shards.len() as i32) < MIN_SHARD {
             panic!("Shard len out of range: {}", shards.len());
         }
     }
 
-    fn generate_random_cell_load(count: i32) -> Vec<i32> {
+    fn generate_random_cell_load(count: i32) -> HashMap<CellID, i32> { 
+        let mut mock_values = HashMap::new();
         let mut rng = rand::thread_rng();
-        (0..count).map(|_| rng.gen_range(0, 2000)).collect()
+
+        for _ in 0..count {
+            let rand_lat = rng.gen_range(0.000000, 2000.000000);
+            let rand_long = rng.gen_range(0.000000, 2000.000000);
+
+            let cell_id = CellID::from(ll!(rand_lat, rand_long));
+            let rand_load_count = rng.gen_range(0, 2000);
+            mock_values.insert(cell_id, rand_load_count);
+
+        }
+        mock_values
     }
 
     #[test]
