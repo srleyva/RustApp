@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use s2::cellid::CellID;
 
-use crate::location::{cell_id_from_long_lat, S2List};
+use crate::location::{cell_id_from_long_lat, S2List, cell_ids_from_radius};
 
 const MIN_SHARD: i32 = 40;
 const MAX_SHARD: i32 = 100;
@@ -23,9 +23,7 @@ impl Shards {
         }
     }
     
-    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&Shard> {
-        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level);
-        // Only 100 shards at most, not important to optimize
+    pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> Option<&Shard> {
         for geoshard in &self.shards {
             // Check if cell_id in shard
             if cell_id >= geoshard.ranges.start.unwrap() && cell_id < geoshard.ranges.end.unwrap() {
@@ -33,6 +31,21 @@ impl Shards {
             }
         }
         None
+    }
+
+    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&Shard> {
+        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level);        
+        self.get_shard_from_cell_id(cell_id)
+    }
+
+    pub fn get_shards_from_radius(&self, lng: f64, lat: f64, radius: u32) -> Vec<&Shard> {
+        let mut geoshards = vec![];
+        let cell_ids = cell_ids_from_radius(lng, lat, self.storage_level, radius);
+        for cell_id in cell_ids {
+            geoshards.push(self.get_shard_from_cell_id(cell_id).unwrap())
+        }
+
+        geoshards
     }
 }
 
@@ -155,6 +168,13 @@ mod test {
 
         let range = geoshard.ranges.start.unwrap()..geoshard.ranges.end.unwrap();
         assert!(range.contains(&cell_id));
+    }
+
+    #[test]
+    fn test_shard_radius_search() {
+        let shards = Shards::new(3);
+        let geoshards = shards.get_shards_from_radius(34.181061, -103.345177, 200);
+        assert_eq!(geoshards.len(), 1);
     }
 
     #[test]
