@@ -4,11 +4,13 @@ use s2::cellid::CellID;
 const MIN_SHARD: i32 = 40;
 const MAX_SHARD: i32 = 100;
 
+#[derive(Debug)]
 pub struct Ranges {
-    start: CellID,
-    end: CellID
+    start: Option<CellID>,
+    end: Option<CellID>
 }
 
+#[derive(Debug)]
 pub struct Shard {
     ranges: Ranges,
     cell_count: i32,
@@ -25,41 +27,39 @@ pub fn generate_shards(cell_load: &HashMap<CellID, i32>) -> Vec<Shard> {
     let mut best_shards: Vec<Shard> = vec![];
     let mut min_standard_deviation = f64::MAX;
 
-    for container_size in min_size..max_size {
-        let mut current_sum = 0;
+    for container_size in min_size..=max_size {
+        let mut shard = Shard {
+            ranges: Ranges {
+                start: None,
+                end: None,
+            },
+            cell_count: 0,
+            cell_score: 0,
+        };
         let mut geo_shards = Vec::new();
         for (cell_id, cell_score) in cell_load {
-            let ranges = Ranges {
-                start: *cell_id,
-                end: *cell_id,
-            };
-            let mut shard = Shard {
-                ranges,
-                cell_count: 0,
-                cell_score: 0,
-            };
-
-            if current_sum + cell_score < container_size {
-                current_sum += cell_score;
+            if shard.cell_score + cell_score < container_size {
+                shard.cell_score += cell_score;
                 shard.cell_count += 1;
             } else {
-                shard.ranges.end = *cell_id;
+                shard.ranges.end = Some(*cell_id);
                 geo_shards.push(shard);
-                current_sum = *cell_score;
+                shard = Shard {
+                    ranges: Ranges {
+                        start: None,
+                        end: None,
+                    },
+                    cell_count: 0,
+                    cell_score: *cell_score,
+                };            
             }
         }
 
-        if current_sum != 0 {
+        if shard.cell_count != 0 {
             let last = cell_load.into_iter().last().unwrap();
-            let ranges = Ranges {
-                start: *last.0,
-                end: *last.0,
-            };
-            let shard = Shard {
-                ranges,
-                cell_count: 1,
-                cell_score: current_sum,
-            };
+            shard.ranges.start = Some(*last.0);
+            shard.ranges.end = Some(*last.0);
+            shard.cell_count += 1;
             geo_shards.push(shard);
         }
 
@@ -104,8 +104,8 @@ mod test {
         ($cell_score:expr) => {
             Shard {
                 ranges: Ranges {
-                    start: CellID::from_face(8),
-                    end: CellID::from_face(8),
+                    start: None,
+                    end: None,
                 },
                 cell_count: 0,
                 cell_score: $cell_score,
@@ -116,26 +116,58 @@ mod test {
 
     #[test]
     fn test_generate_shards() {
-        let mock_cell_load = generate_random_cell_load(100);
+        let mock_cell_load = generate_random_cell_load();
         let shards = generate_shards(&mock_cell_load);
-        
+
         if (shards.len() as i32) > MAX_SHARD || (shards.len() as i32) < MIN_SHARD {
             panic!("Shard len out of range: {}", shards.len());
         }
+
     }
 
-    fn generate_random_cell_load(count: i32) -> HashMap<CellID, i32> { 
+    fn generate_random_cell_load() -> HashMap<CellID, i32> {
         let mut mock_values = HashMap::new();
         let mut rng = rand::thread_rng();
 
-        for _ in 0..count {
+        // Ocean
+        for _ in 0..=10000 {
             let rand_lat = rng.gen_range(0.000000, 2000.000000);
             let rand_long = rng.gen_range(0.000000, 2000.000000);
 
             let cell_id = CellID::from(ll!(rand_lat, rand_long));
-            let rand_load_count = rng.gen_range(0, 2000);
+            let rand_load_count = rng.gen_range(0, 5);
+            mock_values.insert(cell_id, rand_load_count);
+        }
+
+        // Small Cities
+        for _ in 0..=1000 {
+            let rand_lat = rng.gen_range(0.000000, 2000.000000);
+            let rand_long = rng.gen_range(0.000000, 2000.000000);
+
+            let cell_id = CellID::from(ll!(rand_lat, rand_long));
+            let rand_load_count = rng.gen_range(10, 100);
+            mock_values.insert(cell_id, rand_load_count);
+        }
+
+        // Medium Cities
+        for _ in 0..=500 {
+            let rand_lat = rng.gen_range(0.000000, 2000.000000);
+            let rand_long = rng.gen_range(0.000000, 2000.000000);
+
+            let cell_id = CellID::from(ll!(rand_lat, rand_long));
+            let rand_load_count = rng.gen_range(100, 500);
             mock_values.insert(cell_id, rand_load_count);
 
+        }
+
+        // Big Cities
+        for _ in 0..=100 {
+            let rand_lat = rng.gen_range(0.000000, 2000.000000);
+            let rand_long = rng.gen_range(0.000000, 2000.000000);
+
+            let cell_id = CellID::from(ll!(rand_lat, rand_long));
+            let rand_load_count = rng.gen_range(1000, 2000);
+            mock_values.insert(cell_id, rand_load_count);
         }
         mock_values
     }
