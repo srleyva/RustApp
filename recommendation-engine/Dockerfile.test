@@ -26,6 +26,4 @@ WORKDIR /usr/src/myapp
 COPY Cargo.toml .
 COPY src ./src
 
-RUN cargo build --release
-
-RUN cargo install --path .
+RUN cargo test
