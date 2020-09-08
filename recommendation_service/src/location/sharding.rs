@@ -220,8 +220,6 @@ pub fn standard_deviation_between_shards(shards: &Vec<Shard>) -> f64 {
 mod test {
     use super::*;
 
-    use super::*;
-
     use rand::Rng;
 
     use s2::s1;
@@ -260,18 +258,20 @@ mod test {
 
     #[test]
     fn test_shard_search() {
-        let shards = Shards::new(3);
+        let shards = Shards::new(4);
         let geoshard = shards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
 
         let cell_id = cell_id_from_long_lat(34.181061, -103.345177, 4);
 
         let range = geoshard.ranges.start.unwrap()..geoshard.ranges.end.unwrap();
+        println!("Geoshard Range: {}-{}", geoshard.ranges.start.unwrap(), geoshard.ranges.end.unwrap());
+        println!("Geoshard cell: {}", cell_id);
         assert!(range.contains(&cell_id));
     }
 
     #[test]
     fn test_shard_radius_search() {
-        let shards = Shards::new(3);
+        let shards = Shards::new(4);
         let geoshards = shards.get_shards_from_radius(34.181061, -103.345177, 200);
         assert_eq!(geoshards.len(), 1);
     }
