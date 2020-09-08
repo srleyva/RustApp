@@ -1,5 +1,7 @@
 
 use super::super::location::sharding::GeoShard;
+use elastic::prelude::*;
+use serde;
 
 pub struct GeoShardMappingIndex;
 

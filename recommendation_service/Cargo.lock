@@ -1134,10 +1134,14 @@ name = "recommendation_service"
 version = "0.1.0"
 dependencies = [
  "elastic",
+ "elastic_derive",
  "env_logger",
  "log",
  "rand 0.7.3",
  "s2",
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]

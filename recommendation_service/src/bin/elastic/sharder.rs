@@ -1,6 +1,6 @@
 extern crate recommendation_service;
 
-use recommendation_service::elastic::ops::{
+use recommendation_service::elasticsearch::ops::{
     build_geoshard_mapping_index,
     build_geosharded_indices
 };
