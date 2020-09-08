@@ -22,15 +22,79 @@ macro_rules! ll {
     };
 }
 
-pub struct S2List {
-    storage_level: u64,
+pub struct GeoshardBuilder {
+    pub storage_level: u64,
 }
 
-impl S2List {
+impl GeoshardBuilder {
     pub fn new(storage_level: u64) -> Self {
         Self{
             storage_level,
         }
+    }
+
+    pub fn generate_shards(cell_load: BTreeMap<CellID, i32>) -> Vec<GeoShard> {
+        let cell_load = &cell_load;
+        let total: i32 = cell_load.into_iter()
+            .fold(0, |sum, i| sum + i.1);
+    
+        let max_size = total / MIN_SHARD;
+        let min_size = total / MAX_SHARD;
+    
+        let mut best_shards: Vec<GeoShard> = vec![];
+        let mut min_standard_deviation = f64::MAX;
+    
+        for container_size in min_size..=max_size {
+            let first_cell = cell_load.into_iter().next().unwrap();
+            let mut shard = GeoShard {
+                name: "geoshard".to_owned(),
+                storage_level: first_cell.0.level(),
+                ranges: Ranges {
+                    start: Some(*first_cell.0),
+                    end: None,
+                },
+                cell_count: 0,
+                cell_score: 0,
+            };
+            let mut geo_shards = Vec::new();
+            let mut geoshard_count = 0;
+            for (cell_id, cell_score) in cell_load {
+                if shard.cell_score + cell_score < container_size {
+                    shard.cell_score += cell_score;
+                    shard.cell_count += 1;
+                } else {
+                    shard.name = format!("geoshard_{}", geoshard_count);
+                    shard.ranges.end = Some(*cell_id);
+                    geo_shards.push(shard);
+                    shard = GeoShard {
+                        name: "geoshard".to_owned(),
+                        storage_level: cell_id.level(),
+                        ranges: Ranges {
+                            start: Some(*cell_id),
+                            end: None,
+                        },
+                        cell_count: 0,
+                        cell_score: *cell_score,
+                    };
+                    geoshard_count += 1;
+                }
+            }
+    
+            if shard.cell_count != 0 {
+                let last = cell_load.into_iter().last().unwrap();
+                shard.ranges.start = Some(*last.0);
+                shard.ranges.end = Some(*last.0);
+                shard.cell_count += 1;
+                geo_shards.push(shard);
+            }
+    
+            let standard_dev = standard_deviation_between_shards(&geo_shards);
+            if standard_dev < min_standard_deviation {
+                min_standard_deviation = standard_dev;
+                best_shards = geo_shards;
+            }
+        }
+        best_shards
     }
 
     fn recursive_list(&self, cell_id: CellID, seen: &mut BTreeMap<CellID, i32>) {
@@ -47,7 +111,7 @@ impl S2List {
         }
     }
 
-    pub fn into_list(self) -> BTreeMap<CellID, i32> {
+    pub fn into_cell_list(self) -> BTreeMap<CellID, i32> {
         let starting_cell_id = CellID::from(ll!(0.000000,0.000000));
         let mut seen = BTreeMap::new();
 
@@ -62,6 +126,10 @@ impl S2List {
         .unwrap();
 
         child.join().unwrap()
+    }
+
+    pub fn into_geosharded_list(self) -> Vec<GeoShard> {
+        GeoshardBuilder::generate_shards(self.into_cell_list())
     }
 }
 
@@ -89,24 +157,13 @@ pub fn cell_ids_from_radius(long: f64, lat: f64, storage_level: u64, radius: u32
     region_cover.covering(&cap).0
 }
 
-pub struct Shards {
+pub struct GeoShardSearcher {
     storage_level: u64,
-    pub shards: Vec<Shard>,
+    pub shards: Vec<GeoShard>,
 }
 
-impl Shards {
-
-    pub fn new(storage_level: u64) -> Self {
-        let cells = S2List::new(storage_level).into_list();
-        let shards = generate_shards(&cells);
-
-        Self{
-            storage_level,
-            shards
-        }
-    }
-    
-    pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> Option<&Shard> {
+impl GeoShardSearcher {    
+    pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> Option<&GeoShard> {
         for geoshard in &self.shards {
             // Check if cell_id in shard
             if cell_id >= geoshard.ranges.start.unwrap() && cell_id < geoshard.ranges.end.unwrap() {
@@ -116,12 +173,12 @@ impl Shards {
         None
     }
 
-    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&Shard> {
+    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&GeoShard> {
         let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level);        
         self.get_shard_from_cell_id(cell_id)
     }
 
-    pub fn get_shards_from_radius(&self, lng: f64, lat: f64, radius: u32) -> Vec<&Shard> {
+    pub fn get_shards_from_radius(&self, lng: f64, lat: f64, radius: u32) -> Vec<&GeoShard> {
         let mut geoshards = vec![];
         let cell_ids = cell_ids_from_radius(lng, lat, self.storage_level, radius);
         for cell_id in cell_ids {
@@ -132,81 +189,31 @@ impl Shards {
     }
 }
 
+impl From<GeoshardBuilder> for GeoShardSearcher {
+    fn from(geoshard_builder: GeoshardBuilder) -> Self {
+        Self {
+            storage_level: geoshard_builder.storage_level,
+            shards: geoshard_builder.into_geosharded_list(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GeoShard {
+    pub name: String,
+    pub storage_level: u64,
+    ranges: Ranges,
+    cell_count: i32,
+    cell_score: i32
+}
+
 #[derive(Debug)]
 pub struct Ranges {
     start: Option<CellID>,
     end: Option<CellID>
 }
 
-#[derive(Debug)]
-pub struct Shard {
-    pub name: String,
-    ranges: Ranges,
-    cell_count: i32,
-    cell_score: i32
-}
-
-pub fn generate_shards(cell_load: &BTreeMap<CellID, i32>) -> Vec<Shard> {
-    let total: i32 = cell_load.into_iter()
-        .fold(0, |sum, i| sum + i.1);
-
-    let max_size = total / MIN_SHARD;
-    let min_size = total / MAX_SHARD;
-
-    let mut best_shards: Vec<Shard> = vec![];
-    let mut min_standard_deviation = f64::MAX;
-
-    for container_size in min_size..=max_size {
-        let mut shard = Shard {
-            name: "geoshard".to_owned(),
-            ranges: Ranges {
-                start: Some(*cell_load.into_iter().next().unwrap().0),
-                end: None,
-            },
-            cell_count: 0,
-            cell_score: 0,
-        };
-        let mut geo_shards = Vec::new();
-        let mut geoshard_count = 0;
-        for (cell_id, cell_score) in cell_load {
-            if shard.cell_score + cell_score < container_size {
-                shard.cell_score += cell_score;
-                shard.cell_count += 1;
-            } else {
-                shard.name = format!("geoshard_{}", geoshard_count);
-                shard.ranges.end = Some(*cell_id);
-                geo_shards.push(shard);
-                shard = Shard {
-                    name: "geoshard".to_owned(),
-                    ranges: Ranges {
-                        start: Some(*cell_id),
-                        end: None,
-                    },
-                    cell_count: 0,
-                    cell_score: *cell_score,
-                };
-                geoshard_count += 1;
-            }
-        }
-
-        if shard.cell_count != 0 {
-            let last = cell_load.into_iter().last().unwrap();
-            shard.ranges.start = Some(*last.0);
-            shard.ranges.end = Some(*last.0);
-            shard.cell_count += 1;
-            geo_shards.push(shard);
-        }
-
-        let standard_dev = standard_deviation_between_shards(&geo_shards);
-        if standard_dev < min_standard_deviation {
-            min_standard_deviation = standard_dev;
-            best_shards = geo_shards;
-        }
-    }
-    best_shards
-}
-
-pub fn standard_deviation_between_shards(shards: &Vec<Shard>) -> f64 {
+pub fn standard_deviation_between_shards(shards: &Vec<GeoShard>) -> f64 {
     let mean: f64 = shards.into_iter().fold(0.0, |sum, x| sum + x.cell_score as f64) / shards.len() as f64;
 
     let varience: f64 = shards.into_iter()
@@ -237,8 +244,9 @@ mod test {
 
     macro_rules! shard {
         ($cell_score:expr) => {
-            Shard {
+            GeoShard {
                 name: "fake".to_owned(),
+                storage_level: 0,
                 ranges: Ranges {
                     start: None,
                     end: None,
@@ -251,15 +259,16 @@ mod test {
     }
 
     #[test]
-    fn test_s2_list() {
-        let s2_list = S2List::new(8).into_list();    
-        assert_eq!(s2_list.len(), 393216);
+    fn test_geoshard_cell_list() {
+        let cell_list = GeoshardBuilder::new(8).into_cell_list();    
+        assert_eq!(cell_list.len(), 393216);
     }
 
     #[test]
     fn test_shard_search() {
-        let shards = Shards::new(4);
-        let geoshard = shards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
+        let geoshards = GeoShardSearcher::from(GeoshardBuilder::new(4));
+
+        let geoshard = geoshards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
 
         let cell_id = cell_id_from_long_lat(34.181061, -103.345177, 4);
 
@@ -271,15 +280,15 @@ mod test {
 
     #[test]
     fn test_shard_radius_search() {
-        let shards = Shards::new(4);
-        let geoshards = shards.get_shards_from_radius(34.181061, -103.345177, 200);
+        let geoshards = GeoShardSearcher::from(GeoshardBuilder::new(4));
+        let geoshards = geoshards.get_shards_from_radius(34.181061, -103.345177, 200);
         assert_eq!(geoshards.len(), 1);
     }
 
     #[test]
     fn test_generate_shards() {
         let mock_cell_load = generate_random_cell_load();
-        let shards = generate_shards(&mock_cell_load);
+        let shards = GeoshardBuilder::generate_shards(mock_cell_load);
 
         if (shards.len() as i32) > MAX_SHARD || (shards.len() as i32) < MIN_SHARD {
             panic!("Shard len out of range: {}", shards.len());
