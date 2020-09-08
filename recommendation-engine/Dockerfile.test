@@ -1,13 +1,5 @@
 FROM rust:latest as build
 
-RUN rustup component add rustfmt --toolchain 1.45.1-x86_64-unknown-linux-gnu
-
-RUN cd / && USER=root cargo new playground
-
-WORKDIR /playground
-ADD Cargo.toml /playground/Cargo.toml
-RUN touch ./src/client.rs && echo "fn main() { }" > ./src/client.rs
-RUN touch ./src/server.rs && echo "fn main() { }" > ./src/server.rs
 RUN mv /usr/bin/openssl ~/tmp
 RUN wget https://www.openssl.org/source/openssl-1.1.0g.tar.gz && \
     tar -zxf openssl-1.1.0g.tar.gz && cd openssl-1.1.0g && \
@@ -16,7 +8,13 @@ RUN wget https://www.openssl.org/source/openssl-1.1.0g.tar.gz && \
     make install && \
     ln -s /usr/local/bin/openssl /usr/bin/openssl && \
     ldconfig
-RUN openssl version
+
+RUN rustup component add rustfmt
+
+RUN cd / && USER=root cargo new playground
+
+WORKDIR /playground
+ADD Cargo.toml /playground/Cargo.toml
 RUN cargo build
 RUN cargo build --release
 RUN rm src/*.rs
