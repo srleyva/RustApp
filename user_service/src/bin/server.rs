@@ -1,3 +1,6 @@
+/*
+NGL lots of big funcs in here...getting logic inplace before breaking up
+*/
 extern crate user_service;
 
 use base64::encode as b64_encode;
@@ -222,6 +225,8 @@ impl UserService for MainUserService {
                 
             }
         }
+
+        // Produce message to Kafka saying new user has been added
     }
 
     async fn auth(&self, request: Request<AuthRequest>) -> Result<Response<AuthResponse>, Status> {

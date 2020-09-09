@@ -13,6 +13,7 @@ use user_service::user::{
     
     User,
     Location,
+    Gender,
 };
 
 #[tokio::main]
@@ -48,7 +49,7 @@ mod integration_tests {
                     password: "test".to_string(),
                     uid: "".to_string(),
                     age: 22,
-                    gender: false,
+                    gender: Gender::Male as i32,
                     location: Some(Location {
                         latitude: 47.606209,
                         longitude: -122.332069,
@@ -72,7 +73,7 @@ mod integration_tests {
                         password: "test".to_string(),
                         uid: "".to_string(),
                         age: 22,
-                        gender: false,
+                        gender: Gender::Male as i32,
                         location: Some(Location {
                             latitude: 47.606209,
                             longitude: -122.332069,
@@ -94,7 +95,7 @@ mod integration_tests {
                         password: "test".to_string(),
                         uid: "".to_string(),
                         age: 22,
-                        gender: false,
+                        gender: Gender::Male as i32,
                         location: Some(Location {
                             latitude: 47.606209,
                             longitude: -122.332069,
