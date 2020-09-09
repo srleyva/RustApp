@@ -1,10 +1,14 @@
 version: '3.7'
 services:
-  test:
+  user-service-test:
+    restart: on-failure
     depends_on:
     - user-service
-    build: test/
-    container_name: test
+    build: .
+    container_name: user-service-test
+    entrypoint: /test
+    environment:
+      RUST_LOG: "info"
   dynamodb-local:
     image: amazon/dynamodb-local
     container_name: dynamodb-local

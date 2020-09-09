@@ -25,7 +25,6 @@ use rusoto_dynamodb::{
     AttributeValue,
 };
 use std::time::SystemTime;
-use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use serde::{Deserialize, Serialize};
@@ -34,7 +33,6 @@ use env_logger;
 use user_service::user::user_service_server::{UserService, UserServiceServer};
 use user_service::user::{
     User,
-    Location,
     NewUserResponse,
     NewUserRequest,
     AuthResponse,

@@ -9,6 +9,7 @@ ADD Cargo.toml /playground/Cargo.toml
 RUN mkdir -p ./src/bin
 RUN touch ./src/bin/client.rs && echo "fn main() { }" > ./src/bin/client.rs
 RUN touch ./src/bin/server.rs && echo "fn main() { }" > ./src/bin/server.rs
+RUN touch ./src/bin/test.rs && echo "fn main() { }" > ./src/bin/test.rs
 RUN cargo build
 RUN cargo build --release
 RUN rm src/*.rs
@@ -30,5 +31,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y locales 
 
 COPY --from=build /usr/local/cargo/bin/server /server
 COPY --from=build /usr/local/cargo/bin/client /client
+COPY --from=build /usr/local/cargo/bin/user-service-test /test
+
 
 ENTRYPOINT ["/server"]
