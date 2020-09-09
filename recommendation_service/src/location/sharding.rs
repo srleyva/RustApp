@@ -50,7 +50,7 @@ impl GeoshardBuilder {
             info!("Attempt {} out of {}", container_size - min_size, max_size - min_size);
             let first_cell = cell_load.into_iter().next().unwrap();
             let mut shard = GeoShard {
-                name: "geoshard-0".to_owned(),
+                name: "geoshard_user_index_0".to_owned(),
                 storage_level: first_cell.0.level() as i64,
                 start: Some(first_cell.0.to_token()),
                 end: None,
@@ -67,7 +67,7 @@ impl GeoshardBuilder {
                     shard.end = Some(cell_id.to_token());
                     geo_shards.push(shard);
                     shard = GeoShard {
-                        name: format!("geoshard_{}", geoshard_count),
+                        name: format!("geoshard_user_index_{}", geoshard_count),
                         storage_level: cell_id.level() as i64,
                         start: Some(cell_id.to_token()),
                         end: None,

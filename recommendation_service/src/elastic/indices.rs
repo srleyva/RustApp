@@ -12,9 +12,6 @@ impl GeoShardMappingIndex {
     pub fn body() -> Value {
         json!({
             "mappings" : {
-                "_id": {
-                    "path": "name",
-                },
                 "properties" : {
                     "name" : { "type" : "text" },
                     "storage_level" : { "type" : "long" },
