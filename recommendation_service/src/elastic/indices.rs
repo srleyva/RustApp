@@ -51,6 +51,7 @@ impl<'a> UserIndex<'a> {
                     "last_name" : { "type" : "text" },
                     "age" : { "type" : "integer" },
                     "location": {"type" : "geo_point" },
+                    "gender": {"type": "boolean"}
                 }
             }
         })
