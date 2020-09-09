@@ -1,3 +1,5 @@
+extern crate user_service;
+
 use base64::encode as b64_encode;
 use bcrypt::hash;
 use rusoto_core::{
@@ -23,22 +25,22 @@ use rusoto_dynamodb::{
     AttributeValue,
 };
 use std::time::SystemTime;
+use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use serde::{Deserialize, Serialize};
 use log::{info};
 use env_logger;
-use user::user_service_server::{UserService, UserServiceServer};
-use user::{
+use user_service::user::user_service_server::{UserService, UserServiceServer};
+use user_service::user::{
     User,
+    Location,
     NewUserResponse,
     NewUserRequest,
     AuthResponse,
     AuthRequest
 };
 use uuid::Uuid;
-
-mod user;
 
 const DEFAULT_COST: u32 = 10;
 const SECRET: &str = "my-secret";
@@ -149,6 +151,30 @@ impl MainUserService {
         uid_attr.s = Some(user.uid);
         put_item.item.insert("uid".to_string(), uid_attr);
 
+        let mut age_attr = AttributeValue::default();
+        age_attr.n = Some(user.age.to_string());
+        put_item.item.insert("age".to_string(), age_attr);
+
+        let mut gender_attr = AttributeValue::default();
+        gender_attr.bool = Some(user.gender);
+        put_item.item.insert("gender".to_string(), gender_attr);
+
+        // Location
+        let mut location_attr = AttributeValue::default();
+        let mut hash_location = HashMap::new();
+        let location = user.location.unwrap();
+
+        let mut lat_attr = AttributeValue::default();
+        lat_attr.n = Some(location.latitude.to_string());
+        hash_location.insert("latitude".to_string(), lat_attr);
+
+        let mut lng_attr = AttributeValue::default();
+        lng_attr.n = Some(location.longitude.to_string());
+        hash_location.insert("longitude".to_string(), lng_attr);
+
+        location_attr.m = Some(hash_location);
+        put_item.item.insert("location".to_string(), location_attr);
+                
         return match self.client.put_item(put_item).await {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
@@ -186,12 +212,19 @@ impl MainUserService {
         return match self.client.get_item(get_item).await {
             Ok(item) => {
                 let mut user = item.item.unwrap();
+                let mut location = user.remove("location").unwrap().m.unwrap();
                 Ok(User{
                     uid: user.remove("uid").unwrap().s.unwrap(),
                     username: user.remove("username").unwrap().s.unwrap(),
                     first_name: user.remove("first_name").unwrap().s.unwrap(),
                     last_name: user.remove("last_name").unwrap().s.unwrap(),
-                    password: user.remove("password").unwrap().s.unwrap()
+                    password: user.remove("password").unwrap().s.unwrap(),
+                    age: user.remove("age").unwrap().n.unwrap().parse::<i32>().unwrap(),
+                    gender: user.remove("gender").unwrap().bool.unwrap(),
+                    location: Some(Location {
+                        latitude: location.remove("latitude").unwrap().n.unwrap().parse::<f64>().unwrap(),
+                        longitude: location.remove("longitude").unwrap().n.unwrap().parse::<f64>().unwrap(),
+                    })
                 })
             },
             Err(err) => Err(err),

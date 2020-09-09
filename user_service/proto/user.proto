@@ -13,6 +13,14 @@ message User {
   string username = 3;
   string password = 4;
   string uid = 5;
+  int32 age = 6;
+  bool gender = 7; // true: female, false: male
+  Location location = 8;
+}
+
+message Location {
+  double longitude = 1;
+  double latitude = 2;
 }
 
 message AuthRequest {

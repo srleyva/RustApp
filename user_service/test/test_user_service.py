@@ -21,6 +21,12 @@ def client():
             username="test",
             password="password",
             uid="",
+            age=22,
+            gender=False,
+            location=user_pb2.Location(
+                longitute=47.606209,
+                latitude=-122.332069
+            )
         )
     )
     try:
@@ -50,28 +56,44 @@ def test_authentication(client, auth_request, expected_status):
         last_name="test",
         username="test-1",
         password="password",
-        uid="")),
+        uid="",
+        age=22,
+        gender=False,
+        location=user_pb2.Location(longitute=47.606209,latitude=-122.332069)
+        )),
     grpc.StatusCode.OK),
     (user_pb2.NewUserRequest(user=user_pb2.User(
         first_name="test",
         last_name="test",
         username="test-1",
         password="password",
-        uid="")),
+        uid="",
+        age=22,
+        gender=False,
+        location=user_pb2.Location(longitute=47.606209,latitude=-122.332069)
+        )),
     grpc.StatusCode.ALREADY_EXISTS),
     (user_pb2.NewUserRequest(user=user_pb2.User(
         first_name="test",
         last_name="test",
         username="",
         password="password",
-        uid="")),
+        uid="",
+        age=22,
+        gender=False,
+        location=user_pb2.Location(longitute=47.606209,latitude=-122.332069)
+        )),
     grpc.StatusCode.UNAUTHENTICATED),
     (user_pb2.NewUserRequest(user=user_pb2.User(
         first_name="test",
         last_name="test",
         username="test-2",
         password="",
-        uid="")),
+        uid="",
+        age=22,
+        gender=False,
+        location=user_pb2.Location(longitute=47.606209,latitude=-122.332069)
+        )),
     grpc.StatusCode.UNAUTHENTICATED),
 ])
 def test_new_user(client, new_user_request, expected_status):

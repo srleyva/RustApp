@@ -1,7 +1,13 @@
-use user::user_service_client::UserServiceClient;
-use user::{NewUserRequest, AuthRequest, User};
+extern crate user_service;
 
-mod user;
+use user_service::user::user_service_client::UserServiceClient;
+use user_service::user::{
+    NewUserRequest, 
+    AuthRequest, 
+    
+    User,
+    Location,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,6 +26,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 username: "sleyva".to_string(),
                 password: "password".to_string(),
                 uid: "".to_string(),
+                age: 22,
+                gender: false,
+                location: Some(Location {
+                    latitude: 47.606209,
+                    longitude: -122.332069,
+                })
             })
         },
     );

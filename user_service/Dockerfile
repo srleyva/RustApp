@@ -1,13 +1,14 @@
 FROM rust:latest as build
 
-RUN rustup component add rustfmt --toolchain 1.45.1-x86_64-unknown-linux-gnu
+RUN rustup component add rustfmt
 
 RUN cd / && USER=root cargo new playground
 
 WORKDIR /playground
 ADD Cargo.toml /playground/Cargo.toml
-RUN touch ./src/client.rs && echo "fn main() { }" > ./src/client.rs
-RUN touch ./src/server.rs && echo "fn main() { }" > ./src/server.rs
+RUN mkdir -p ./src/bin
+RUN touch ./src/bin/client.rs && echo "fn main() { }" > ./src/bin/client.rs
+RUN touch ./src/bin/server.rs && echo "fn main() { }" > ./src/bin/server.rs
 RUN cargo build
 RUN cargo build --release
 RUN rm src/*.rs
@@ -29,7 +30,5 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y locales 
 
 COPY --from=build /usr/local/cargo/bin/server /server
 COPY --from=build /usr/local/cargo/bin/client /client
-
-RUN which sleep
 
 ENTRYPOINT ["/server"]
