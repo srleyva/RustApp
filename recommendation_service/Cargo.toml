@@ -5,14 +5,18 @@ authors = ["Stephen Leyva <sleyva1297@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "geo-sharder"
+path = "./src/bin/elastic/sharder.rs"
 
 [dependencies]
+tokio = { version = "*", features = ["full"] }
 rand = "0.7"
 s2 = "0.0"
-elastic = "0.21.0-pre.5" 
-elastic_derive = "0.21.0-pre.5"
 log = "0.4"
 env_logger = "0.7"
 serde = "~1"
 serde_json = "~1"
 serde_derive = "~1"
+elasticsearch = { git = "https://github.com/elastic/elasticsearch-rs", branch="7.x"}
+futures = "*"

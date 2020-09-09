@@ -8,6 +8,7 @@ use s2::latlng::LatLng;
 use s2::point::Point;
 use s2::cap::Cap;
 use s2::region::RegionCoverer;
+use log::{info};
 
 const EARTH_RADIUS: f64 = 6.37e6f64;
 const MIN_SHARD: i32 = 40;
@@ -23,11 +24,12 @@ macro_rules! ll {
 }
 
 pub struct GeoshardBuilder {
-    pub storage_level: u64,
+    pub storage_level: i64,
 }
 
 impl GeoshardBuilder {
-    pub fn new(storage_level: u64) -> Self {
+    pub fn new(storage_level: i64) -> Self {
+        info!("Generating shards at level: {}", storage_level);
         Self{
             storage_level,
         }
@@ -45,34 +47,30 @@ impl GeoshardBuilder {
         let mut min_standard_deviation = f64::MAX;
     
         for container_size in min_size..=max_size {
+            info!("Attempt {} out of {}", container_size - min_size, max_size - min_size);
             let first_cell = cell_load.into_iter().next().unwrap();
             let mut shard = GeoShard {
-                name: "geoshard".to_owned(),
-                storage_level: first_cell.0.level(),
-                ranges: Ranges {
-                    start: Some(*first_cell.0),
-                    end: None,
-                },
+                name: "geoshard-0".to_owned(),
+                storage_level: first_cell.0.level() as i64,
+                start: Some(first_cell.0.to_token()),
+                end: None,
                 cell_count: 0,
                 cell_score: 0,
             };
             let mut geo_shards = Vec::new();
-            let mut geoshard_count = 0;
+            let mut geoshard_count = 1;
             for (cell_id, cell_score) in cell_load {
                 if shard.cell_score + cell_score < container_size {
                     shard.cell_score += cell_score;
                     shard.cell_count += 1;
                 } else {
-                    shard.name = format!("geoshard_{}", geoshard_count);
-                    shard.ranges.end = Some(*cell_id);
+                    shard.end = Some(cell_id.to_token());
                     geo_shards.push(shard);
                     shard = GeoShard {
-                        name: "geoshard".to_owned(),
-                        storage_level: cell_id.level(),
-                        ranges: Ranges {
-                            start: Some(*cell_id),
-                            end: None,
-                        },
+                        name: format!("geoshard_{}", geoshard_count),
+                        storage_level: cell_id.level() as i64,
+                        start: Some(cell_id.to_token()),
+                        end: None,
                         cell_count: 0,
                         cell_score: *cell_score,
                     };
@@ -82,8 +80,8 @@ impl GeoshardBuilder {
     
             if shard.cell_count != 0 {
                 let last = cell_load.into_iter().last().unwrap();
-                shard.ranges.start = Some(*last.0);
-                shard.ranges.end = Some(*last.0);
+                shard.start = Some(last.0.to_token());
+                shard.end = Some(last.0.to_token());
                 shard.cell_count += 1;
                 geo_shards.push(shard);
             }
@@ -98,7 +96,7 @@ impl GeoshardBuilder {
     }
 
     fn recursive_list(&self, cell_id: CellID, seen: &mut BTreeMap<CellID, i32>) {
-        let neighbors = cell_id.vertex_neighbors(self.storage_level);
+        let neighbors = cell_id.vertex_neighbors(self.storage_level as u64);
         for neighbor in neighbors {
             match seen.get(&neighbor) {
                 Some(_) => (),
@@ -158,7 +156,7 @@ pub fn cell_ids_from_radius(long: f64, lat: f64, storage_level: u64, radius: u32
 }
 
 pub struct GeoShardSearcher {
-    storage_level: u64,
+    storage_level: i64,
     pub shards: Vec<GeoShard>,
 }
 
@@ -166,7 +164,10 @@ impl GeoShardSearcher {
     pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> Option<&GeoShard> {
         for geoshard in &self.shards {
             // Check if cell_id in shard
-            if cell_id >= geoshard.ranges.start.unwrap() && cell_id < geoshard.ranges.end.unwrap() {
+            let cell_id_start = CellID::from_token(geoshard.start.as_ref().unwrap().as_str());
+            let cell_id_end = CellID::from_token(geoshard.end.as_ref().unwrap().as_str());
+
+            if cell_id >= cell_id_start && cell_id < cell_id_end {
                 return Some(&geoshard);
             }
         }
@@ -174,13 +175,13 @@ impl GeoShardSearcher {
     }
 
     pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&GeoShard> {
-        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level);        
+        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level as u64);        
         self.get_shard_from_cell_id(cell_id)
     }
 
     pub fn get_shards_from_radius(&self, lng: f64, lat: f64, radius: u32) -> Vec<&GeoShard> {
         let mut geoshards = vec![];
-        let cell_ids = cell_ids_from_radius(lng, lat, self.storage_level, radius);
+        let cell_ids = cell_ids_from_radius(lng, lat, self.storage_level as u64, radius);
         for cell_id in cell_ids {
             geoshards.push(self.get_shard_from_cell_id(cell_id).unwrap())
         }
@@ -198,19 +199,14 @@ impl From<GeoshardBuilder> for GeoShardSearcher {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GeoShard {
     pub name: String,
-    pub storage_level: u64,
-    ranges: Ranges,
+    pub storage_level: i64,
+    start: Option<String>,
+    end: Option<String>,
     cell_count: i32,
     cell_score: i32
-}
-
-#[derive(Debug)]
-pub struct Ranges {
-    start: Option<CellID>,
-    end: Option<CellID>
 }
 
 pub fn standard_deviation_between_shards(shards: &Vec<GeoShard>) -> f64 {
@@ -247,10 +243,8 @@ mod test {
             GeoShard {
                 name: "fake".to_owned(),
                 storage_level: 0,
-                ranges: Ranges {
-                    start: None,
-                    end: None,
-                },
+                start: None,
+                end: None,
                 cell_count: 0,
                 cell_score: $cell_score,
             };
@@ -271,9 +265,12 @@ mod test {
         let geoshard = geoshards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
 
         let cell_id = cell_id_from_long_lat(34.181061, -103.345177, 4);
+        let cell_id_start = CellID::from_token(geoshard.start.as_ref().unwrap().as_str());
+        let cell_id_end = CellID::from_token(geoshard.end.as_ref().unwrap().as_str());
 
-        let range = geoshard.ranges.start.unwrap()..geoshard.ranges.end.unwrap();
-        println!("Geoshard Range: {}-{}", geoshard.ranges.start.unwrap(), geoshard.ranges.end.unwrap());
+
+        let range = cell_id_start..cell_id_end;
+        println!("Geoshard Range: {}-{}", cell_id_start, cell_id_end);
         println!("Geoshard cell: {}", cell_id);
         assert!(range.contains(&cell_id));
     }
