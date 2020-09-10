@@ -6,3 +6,5 @@ extern crate serde_json;
 
 pub mod elastic;
 pub mod location;
+pub mod recommendation;
+pub mod service;

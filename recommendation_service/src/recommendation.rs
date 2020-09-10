@@ -1,0 +1,1 @@
+tonic::include_proto!("recommendation_svc");

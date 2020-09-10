@@ -3,7 +3,7 @@ syntax = "proto3";
 package recommendation_svc;
 
 service RecommendationService {
-  rpc GetQueue (GetQueueRequest) returns (GetQueueResponse);
+  rpc GetQueue (GetQueueRequest) returns (stream User);
   rpc Swipe(SwipeRequest) returns (SwipeResponse);
 }
 
@@ -14,6 +14,11 @@ message User {
     int32 age = 6;
     Gender gender = 7;
     Location location = 8;
+}
+
+message Location {
+    double longitude = 1;
+    double latitude = 2;
 }
 
 enum Gender {
@@ -36,8 +41,4 @@ message SwipeResponse {
 
 message GetQueueRequest {
     string uid = 1;
-}
-
-message GetQueueResponse {
-    stream User = 1;
 }
