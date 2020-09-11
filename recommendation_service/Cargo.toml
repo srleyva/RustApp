@@ -13,6 +13,10 @@ path = "./src/bin/elastic/sharder.rs"
 name = "server"
 path = "./src/bin/server/server.rs"
 
+[[bin]]
+name = "client"
+path = "./src/bin/client/client.rs"
+
 [dependencies]
 tonic = {version="0.3",features = ["tls"]}
 prost = "0.6"

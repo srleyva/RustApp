@@ -1,5 +1,16 @@
 version: '2.2'
 services:
+  # recommendation_service:
+  #   restart: on-failure
+  #   depends_on:
+  #   - es01
+  #   - es02
+  #   - es03
+  #   build: .
+  #   container_name: recommendation_service
+  #   entrypoint: /server
+  #   environment:
+  #     RUST_LOG: "info"    
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
     container_name: es01

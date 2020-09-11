@@ -44,5 +44,5 @@ message SwipeResponse {
 message GetQueueRequest {
     double longitude = 1;
     double latitude = 2;
-    uint64 radius = 3;
+    uint32 radius = 3;
 }
