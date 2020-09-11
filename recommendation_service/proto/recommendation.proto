@@ -14,6 +14,8 @@ message User {
     int32 age = 6;
     Gender gender = 7;
     Location location = 8;
+    repeated string my_swipes = 9;
+    repeated string potential_matches = 10;
 }
 
 message Location {
@@ -40,5 +42,7 @@ message SwipeResponse {
 };
 
 message GetQueueRequest {
-    string uid = 1;
+    double longitude = 1;
+    double latitude = 2;
+    uint64 radius = 3;
 }

@@ -12,7 +12,9 @@ use super::indices::{
     GeoShardMappingIndex,
     UserIndex,
 };
-
+use super::super::recommendation::{
+    User
+};
 use elasticsearch::indices::{
     IndicesCreateParts
 };
@@ -79,9 +81,7 @@ impl ElasticOperator {
     }
 
     pub async fn load_shard_into_memory(&self) -> Vec<GeoShard> {
-        info!("Loading Shards from elastic: {}", GeoShardMappingIndex::name());
-        self.client.ping();
-    
+        info!("Loading Shards from elastic: {}", GeoShardMappingIndex::name());    
         let resp = self.client
             .search(SearchParts::Index(&[GeoShardMappingIndex::name().as_str()]))
             .body(json!({
