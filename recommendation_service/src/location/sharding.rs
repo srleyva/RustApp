@@ -10,9 +10,9 @@ use s2::cap::Cap;
 use s2::region::RegionCoverer;
 use log::{info};
 
-const EARTH_RADIUS: f64 = 6.37e6f64;
-const MIN_SHARD: i32 = 40;
-const MAX_SHARD: i32 = 100;
+pub const EARTH_RADIUS: f64 = 6.37e6f64;
+pub const MIN_SHARD: i32 = 40;
+pub const MAX_SHARD: i32 = 100;
 
 macro_rules! ll {
     ($lng:expr, $lat:expr) => {
@@ -195,6 +195,16 @@ impl From<GeoshardBuilder> for GeoShardSearcher {
         Self {
             storage_level: geoshard_builder.storage_level,
             shards: geoshard_builder.into_geosharded_list(),
+        }
+    }
+}
+
+impl From<Vec<GeoShard>> for GeoShardSearcher {
+    fn from(shards: Vec<GeoShard>) -> Self {
+        let storage_level = shards.first().unwrap().storage_level;
+        Self {
+            storage_level,
+            shards
         }
     }
 }
