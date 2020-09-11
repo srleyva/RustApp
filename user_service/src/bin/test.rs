@@ -6,6 +6,7 @@ Want to look into frameworks, but for now this is good enough
 
 extern crate user_service;
 
+use std::{thread, time};
 use user_service::user::user_service_client::UserServiceClient;
 use user_service::user::{
     NewUserRequest, 
@@ -22,6 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect()
         .await.unwrap();
     let mut client = UserServiceClient::new(channel);
+    
+    thread::sleep(time::Duration::from_secs(5));
 
     integration_tests::setup(&mut client).await;
 

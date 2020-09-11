@@ -28,6 +28,7 @@ use rusoto_dynamodb::{
     AttributeValue,
 };
 use std::time::SystemTime;
+use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use serde::{Deserialize, Serialize};
@@ -143,7 +144,23 @@ impl MainUserService {
         let mut uid_attr = AttributeValue::default();
         uid_attr.s = Some(user.uid);
         put_item.item.insert("uid".to_string(), uid_attr);
-         
+
+        // Location
+        let mut location_attr = AttributeValue::default();
+        let mut hash_location = HashMap::new();
+        let location = user.location.unwrap();
+
+        let mut lat_attr = AttributeValue::default();
+        lat_attr.n = Some(location.latitude.to_string());
+        hash_location.insert("latitude".to_string(), lat_attr);
+
+        let mut lng_attr = AttributeValue::default();
+        lng_attr.n = Some(location.longitude.to_string());
+        hash_location.insert("longitude".to_string(), lng_attr);
+
+        location_attr.m = Some(hash_location);
+        put_item.item.insert("location".to_string(), location_attr);
+
         return match self.client.put_item(put_item).await {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
@@ -168,7 +185,7 @@ impl MainUserService {
         encode(&header, &claims, &key).unwrap()
     }
 
-    async fn get_user(&self, username: String) -> Result<(String, String, String), RusotoError<GetItemError>> {
+    async fn get_user(&self, username: String) -> Result<(String, String, String, (f64, f64)), RusotoError<GetItemError>> {
         let mut get_item = GetItemInput::default();
         get_item.consistent_read = Some(true);
         get_item.table_name = "date-app-user-service".to_string();
@@ -181,10 +198,18 @@ impl MainUserService {
         return match self.client.get_item(get_item).await {
             Ok(item) => {
                 let mut user = item.item.unwrap();
-                Ok((
-                    user.remove("uid").unwrap().s.unwrap(), 
-                    user.remove("username").unwrap().s.unwrap(), 
-                    user.remove("password").unwrap().s.unwrap()))
+                let mut location = user.remove("location").unwrap().m.unwrap();
+                Ok(
+                    (
+                        user.remove("uid").unwrap().s.unwrap(), 
+                        user.remove("username").unwrap().s.unwrap(), 
+                        user.remove("password").unwrap().s.unwrap(),
+                        (
+                            location.remove("longitude").unwrap().n.unwrap().parse::<f64>().unwrap(),
+                            location.remove("latitude").unwrap().n.unwrap().parse::<f64>().unwrap()
+                        ) // Storing longitude/latitude as its required to find users shard
+                    )
+                )
             },
             Err(err) => Err(err),
         };        
