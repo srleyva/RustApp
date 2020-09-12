@@ -51,7 +51,7 @@ impl<'a> UserIndex<'a> {
                     "last_name" : { "type" : "text" },
                     "age" : { "type" : "integer" },
                     "location": {"type" : "geo_point" },
-                    "gender": {"type": "boolean"},
+                    "gender": {"type": "integer"},
                     "my_swipes": { "type": "text" },
                     "potential_match": { "type": "text" }
                 }

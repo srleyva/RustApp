@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package recommendation_svc;
+
+service RecommendationService {
+  rpc GetQueue (GetQueueRequest) returns (stream User);
+  rpc Swipe(SwipeRequest) returns (SwipeResponse);
+}
+
+message User {
+    string first_name = 1;
+    string last_name = 2;
+    string uid = 5;
+    int32 age = 6;
+    Gender gender = 7;
+    Location location = 8;
+    repeated string my_swipes = 9;
+    repeated string potential_matches = 10;
+}
+
+message Location {
+    double longitude = 1;
+    double latitude = 2;
+}
+
+enum Gender {
+    Male = 0;
+    Female = 1;
+}
+
+enum Swipe {
+    Left = 0;
+    Right = 1;
+}
+
+message SwipeRequest {
+    Swipe swipe = 1;
+}
+
+message SwipeResponse {
+    bool Match = 1;
+};
+
+message GetQueueRequest {
+    double longitude = 1;
+    double latitude = 2;
+    uint32 radius = 3;
+}

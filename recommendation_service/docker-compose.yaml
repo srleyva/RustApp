@@ -74,6 +74,27 @@ services:
     networks:
       - elastic
 
+  es04:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+    container_name: es04
+    environment:
+      - node.name=es04
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data04:/usr/share/elasticsearch/data
+    ports:
+      - 9203:9203
+    networks:
+      - elastic
+
   kib01:
     image: docker.elastic.co/kibana/kibana:7.9.1
     container_name: kib01
@@ -91,6 +112,8 @@ volumes:
   data02:
     driver: local
   data03:
+    driver: local
+  data04:
     driver: local
 
 networks:

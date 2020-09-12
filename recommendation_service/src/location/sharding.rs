@@ -2,13 +2,21 @@ use std::collections::BTreeMap;
 use std::thread;
 use rand::Rng;
 
+use elasticsearch::http::request::JsonBody;
+use super::super::recommendation::{
+    User
+};
+
 use s2::s1;
 use s2::cellid::CellID;
 use s2::latlng::LatLng;
 use s2::point::Point;
 use s2::cap::Cap;
 use s2::region::RegionCoverer;
-use log::{info};
+use log::{
+    info,
+    debug,
+};
 
 pub const EARTH_RADIUS: f64 = 6.37e6f64;
 pub const MIN_SHARD: i32 = 40;
@@ -60,6 +68,9 @@ impl GeoshardBuilder {
             let mut geo_shards = Vec::new();
             let mut geoshard_count = 1;
             for (cell_id, cell_score) in cell_load {
+                if shard.start == None {
+                    shard.start = Some(cell_id.to_token());
+                }
                 if shard.cell_score + cell_score < container_size {
                     shard.cell_score += cell_score;
                     shard.cell_count += 1;
@@ -69,7 +80,7 @@ impl GeoshardBuilder {
                     shard = GeoShard {
                         name: format!("geoshard_user_index_{}", geoshard_count),
                         storage_level: cell_id.level() as i64,
-                        start: Some(cell_id.to_token()),
+                        start: None,
                         end: None,
                         cell_count: 0,
                         cell_score: *cell_score,
@@ -161,21 +172,22 @@ pub struct GeoShardSearcher {
 }
 
 impl GeoShardSearcher {    
-    pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> Option<&GeoShard> {
+    pub fn get_shard_from_cell_id(&self, cell_id: CellID) -> &GeoShard {
         for geoshard in &self.shards {
             // Check if cell_id in shard
             let cell_id_start = CellID::from_token(geoshard.start.as_ref().unwrap().as_str());
             let cell_id_end = CellID::from_token(geoshard.end.as_ref().unwrap().as_str());
-
-            if cell_id >= cell_id_start && cell_id < cell_id_end {
-                return Some(&geoshard);
+            debug!("Range: {}-{} Value: {}", cell_id_start, cell_id_end, cell_id);
+            if cell_id >= cell_id_start && cell_id <= cell_id_end {
+                return &geoshard
             }
         }
-        None
+        self.shards.last().unwrap()
     }
 
-    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> Option<&GeoShard> {
-        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level as u64);        
+    pub fn get_shard_from_lng_lat(&self, lng: f64, lat: f64) -> &GeoShard {
+        let cell_id = cell_id_from_long_lat(lng, lat, self.storage_level as u64);
+        debug!("{} {} => cell: {}", lat, lng, cell_id.to_token());  
         self.get_shard_from_cell_id(cell_id)
     }
 
@@ -183,10 +195,24 @@ impl GeoShardSearcher {
         let mut geoshards = vec![];
         let cell_ids = cell_ids_from_radius(lng, lat, self.storage_level as u64, radius);
         for cell_id in cell_ids {
-            geoshards.push(self.get_shard_from_cell_id(cell_id).unwrap())
+            geoshards.push(self.get_shard_from_cell_id(cell_id));
         }
-
         geoshards
+    }
+
+    pub fn build_es_request(&self, users: Vec<User>) -> Vec<JsonBody<serde_json::Value>> {
+        let mut body: Vec<JsonBody<_>> = Vec::with_capacity(4);
+
+        for user in users {
+            let index = self.get_shard_from_lng_lat(
+                user.location.as_ref().unwrap().latitude, 
+                user.location.as_ref().unwrap().longitude, 
+            );
+            debug!("Creating User {} in shard {}", format!("{} {}", user.first_name, user.last_name), index.name);
+            body.push(json!({"index": {"_index": index.name, "_id": user.uid }}).into());
+            body.push(serde_json::to_value(&user).unwrap().into());
+        }
+        body
     }
 }
 
@@ -272,7 +298,7 @@ mod test {
     fn test_shard_search() {
         let geoshards = GeoShardSearcher::from(GeoshardBuilder::new(4));
 
-        let geoshard = geoshards.get_shard_from_lng_lat(34.181061, -103.345177).unwrap();
+        let geoshard = geoshards.get_shard_from_lng_lat(34.181061, -103.345177);
 
         let cell_id = cell_id_from_long_lat(34.181061, -103.345177, 4);
         let cell_id_start = CellID::from_token(geoshard.start.as_ref().unwrap().as_str());

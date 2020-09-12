@@ -10,7 +10,7 @@ name = "geo-sharder"
 path = "./src/bin/elastic/sharder.rs"
 
 [[bin]]
-name = "laod-users"
+name = "user-loader"
 path = "./src/bin/elastic/loader.rs"
 
 [[bin]]

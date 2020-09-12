@@ -1,39 +1,63 @@
-// extern crate recommendation_service;
+extern crate recommendation_service;
 
-// use recommendation_service::recommendation::{
-//     User
-// };
+use recommendation_service::recommendation::{
+    Location,
+    User
+};
 
-// use env_logger::init;
-// use log::{
-//     info
-// };
+use std::iter::Cycle;
+use std::vec::IntoIter;
+use recommendation_service::service::MainRecommendactionService;
+use recommendation_service::elastic::ops::ElasticOperator;
+use recommendation_service::location::sharding::GeoShardSearcher;
 
-// use std::fs;
-// use serde_json::{
-//     from_str,
-//     Value
-// };
+use elasticsearch::{
+    BulkParts,
+    http::{
+        Url
+    },
+    http::transport::{
+        Transport,
+        ConnectionPool,
+        Connection
+    },
+    Elasticsearch,
+};
 
-// #[tokio::main]
-// async fn main() {
-//     init();
-//     info!("loading users");
-//     let users = fs::read_to_string("./seed/seed.txt").unwrap();
-//     let users: Value = from_str(users.as_str()).unwrap();
+use env_logger::init;
+use log::{
+    info,
+    debug
+};
 
-//     let users: Vec<User> = users
-//             .as_array()
-//             .unwrap()
-//             .iter()
-//             .map(|h| {
-//                 User {
-//                     first_name: h["first_name"].to_string(),
-//                     last_name: h["last_name"].to_string(),
-//                     uid: h["uid"].to_string(),
-//                     age: h["age"]
-//                 }
-//             })
-//             .collect();
+use std::fs;
+use serde_json::{
+    from_str,
+    Value
+};
 
-// }
+#[tokio::main]
+async fn main() {
+    init();
+    info!("loading users");
+    let users = fs::read_to_string("./seed/seed-data.txt").unwrap();
+    let users: Value = from_str(users.as_str()).unwrap();
+
+    let users: Vec<User> = users
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| serde_json::from_value(h.clone()).unwrap())
+        .collect();
+
+    debug!("{:?}", users);
+    
+    let transport = Transport::single_node("http://localhost:9200").unwrap();
+    let client = Elasticsearch::new(transport);
+    let elastic_operator = ElasticOperator::new(client);
+    
+    let service = MainRecommendactionService::new(elastic_operator).await;
+    
+    // TODO Implement bulk load
+    service.new_users(users).await;
+}

@@ -1,6 +1,7 @@
 use log::{
     info,
     debug,
+    error
 };
 
 
@@ -26,7 +27,8 @@ use serde_json::{
 use elasticsearch::{
     Elasticsearch,
     BulkParts,
-    SearchParts
+    SearchParts,
+    CreateParts
 };
 use elasticsearch::http::request::JsonBody;
 
@@ -67,10 +69,8 @@ pub async fn build_geosharded_indices(client: &Elasticsearch, shards: &Vec<GeoSh
     }
 }
 
-
-
 pub struct ElasticOperator {
-    client: Elasticsearch
+    pub client: Elasticsearch
 }
 
 impl ElasticOperator {
@@ -78,6 +78,36 @@ impl ElasticOperator {
         Self {
             client
         }
+    }
+
+    pub async fn write_user(&self, index: &String, user: User) {
+        info!("Writing User: {} {} to {}", user.first_name, user.last_name, index);
+        info!("User: {}", serde_json::to_value(&user).unwrap().to_string());
+        let resp = self.client
+            .create(CreateParts::IndexId(index.as_str(), &user.uid))
+            .body(&user)
+            .send().await.unwrap()
+            .exception().await.unwrap();
+        println!("{:?}", resp);
+    }
+
+    pub async fn write_users(&self, user_body: Vec<JsonBody<serde_json::Value>>) {
+        info!("Bulk writing users: {}", user_body.len() / 2);
+        let resp = self.client
+            .bulk(BulkParts::None)
+            .body(user_body)
+            .send().await.unwrap();
+        
+        match resp.exception().await {
+            Ok(err) => {
+                match err {
+                    Some(err) => error!("Error: {:?}", err),
+                    _ => (),
+                }
+            },
+            Err(err) => error!("{}", err)
+        }
+
     }
 
     pub async fn load_shard_into_memory(&self) -> Vec<GeoShard> {
