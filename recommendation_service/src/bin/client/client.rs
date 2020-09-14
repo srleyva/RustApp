@@ -1,32 +1,26 @@
 extern crate recommendation_service;
 
-use tonic::{
-    Request, 
-};
-use log::{
-    info
-};
-use env_logger;
+use env_logger::init;
+use log::info;
+use tonic::Request;
 
 use recommendation_service::recommendation::{
-    GetQueueRequest,
-    recommendation_service_client::RecommendationServiceClient
+    recommendation_service_client::RecommendationServiceClient, GetQueueRequest,
 };
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    init();
     let channel = tonic::transport::Channel::from_static("http://localhost:3030")
         .connect()
-        .await.unwrap();
+        .await
+        .unwrap();
     let mut client = RecommendationServiceClient::new(channel);
-    
     let request = Request::new(GetQueueRequest {
         longitude: 47.6062,
         latitude: 122.3321,
-        radius: 20
+        radius: 20,
     });
-   
     let mut result = client.get_queue(request).await.unwrap().into_inner();
 
     while let Some(user) = result.message().await.unwrap() {

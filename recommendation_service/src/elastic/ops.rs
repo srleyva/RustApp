@@ -1,44 +1,30 @@
-use log::{
-    info,
-    debug,
-    error
-};
+use log::{debug, error, info};
 
+use super::super::location::sharding::{GeoShard, MAX_SHARD};
+use super::super::recommendation::User;
+use super::indices::{GeoShardMappingIndex, UserIndex};
+use elasticsearch::indices::IndicesCreateParts;
 
-use super::super::location::sharding::{
-    GeoShard,
-    MAX_SHARD,
-};
-use super::indices::{
-    GeoShardMappingIndex,
-    UserIndex,
-};
-use super::super::recommendation::{
-    User
-};
-use elasticsearch::indices::{
-    IndicesCreateParts
-};
+use serde_json::value::Value;
 
-use serde_json::{
-    value::Value
-};
-
-use elasticsearch::{
-    Elasticsearch,
-    BulkParts,
-    SearchParts,
-    CreateParts
-};
 use elasticsearch::http::request::JsonBody;
+use elasticsearch::{BulkParts, CreateParts, Elasticsearch, SearchParts};
 
-pub async fn build_geoshard_mapping_index(client: &Elasticsearch, shards: &Vec<GeoShard>) {
-    info!("Building Geoshard Mapping Index: {}", GeoShardMappingIndex::name());
+pub async fn build_geoshard_mapping_index(client: &Elasticsearch, shards: &[GeoShard]) {
+    info!(
+        "Building Geoshard Mapping Index: {}",
+        GeoShardMappingIndex::name()
+    );
     client.ping();
-    client.indices()
-        .create(IndicesCreateParts::Index(GeoShardMappingIndex::name().as_str()))
+    client
+        .indices()
+        .create(IndicesCreateParts::Index(
+            GeoShardMappingIndex::name().as_str(),
+        ))
         .body(GeoShardMappingIndex::body())
-        .send().await.unwrap();
+        .send()
+        .await
+        .unwrap();
 
     let mut body: Vec<JsonBody<_>> = Vec::with_capacity(4);
     for shard in shards {
@@ -47,79 +33,101 @@ pub async fn build_geoshard_mapping_index(client: &Elasticsearch, shards: &Vec<G
     }
 
     let response = client
-    .bulk(BulkParts::Index(GeoShardMappingIndex::name().as_str()))
-    .body(body)
-    .send()
-    .await.unwrap();
-    info!("Sucess for mapping {}: {}", GeoShardMappingIndex::name(), response.status_code().is_success());
+        .bulk(BulkParts::Index(GeoShardMappingIndex::name().as_str()))
+        .body(body)
+        .send()
+        .await
+        .unwrap();
+    info!(
+        "Sucess for mapping {}: {}",
+        GeoShardMappingIndex::name(),
+        response.status_code().is_success()
+    );
 }
 
-pub async fn build_geosharded_indices(client: &Elasticsearch, shards: &Vec<GeoShard>) {
+pub async fn build_geosharded_indices(client: &Elasticsearch, shards: &[GeoShard]) {
     info!("Building shards from level {} index", 7);
     client.ping();
 
     for shard in shards {
         let user_index = UserIndex::from(shard);
         info!("Creating Index: {}", user_index.name());
-        let response = client.indices()
+        let response = client
+            .indices()
             .create(IndicesCreateParts::Index(user_index.name().as_str()))
             .body(user_index.body())
-            .send().await.unwrap();
-        info!("Sucess for geoshard creation {}: {}", shard.name, response.status_code().is_success());
+            .send()
+            .await
+            .unwrap();
+        info!(
+            "Sucess for geoshard creation {}: {}",
+            shard.name,
+            response.status_code().is_success()
+        );
     }
 }
 
 pub struct ElasticOperator {
-    pub client: Elasticsearch
+    pub client: Elasticsearch,
 }
 
 impl ElasticOperator {
     pub fn new(client: Elasticsearch) -> Self {
-        Self {
-            client
-        }
+        Self { client }
     }
 
-    pub async fn write_user(&self, index: &String, user: User) {
-        info!("Writing User: {} {} to {}", user.first_name, user.last_name, index);
+    pub async fn write_user(&self, index: &str, user: User) {
+        info!(
+            "Writing User: {} {} to {}",
+            user.first_name, user.last_name, index
+        );
         info!("User: {}", serde_json::to_value(&user).unwrap().to_string());
-        let resp = self.client
-            .create(CreateParts::IndexId(index.as_str(), &user.uid))
+        let resp = self
+            .client
+            .create(CreateParts::IndexId(index, &user.uid))
             .body(&user)
-            .send().await.unwrap()
-            .exception().await.unwrap();
+            .send()
+            .await
+            .unwrap()
+            .exception()
+            .await
+            .unwrap();
         println!("{:?}", resp);
     }
 
     pub async fn write_users(&self, user_body: Vec<JsonBody<serde_json::Value>>) {
         info!("Bulk writing users: {}", user_body.len() / 2);
-        let resp = self.client
+        let resp = self
+            .client
             .bulk(BulkParts::None)
             .body(user_body)
-            .send().await.unwrap();
-        
+            .send()
+            .await
+            .unwrap();
         match resp.exception().await {
             Ok(err) => {
-                match err {
-                    Some(err) => error!("Error: {:?}", err),
-                    _ => (),
+                if let Some(err) = err {
+                    error!("Error: {:?}", err)
                 }
-            },
-            Err(err) => error!("{}", err)
+            }
+            Err(err) => error!("{}", err),
         }
-
     }
 
     pub async fn load_shard_into_memory(&self) -> Vec<GeoShard> {
-        info!("Loading Shards from elastic: {}", GeoShardMappingIndex::name());    
-        let resp = self.client
+        info!(
+            "Loading Shards from elastic: {}",
+            GeoShardMappingIndex::name()
+        );
+        let resp = self
+            .client
             .search(SearchParts::Index(&[GeoShardMappingIndex::name().as_str()]))
-            .body(json!({
-                "size": MAX_SHARD
-            }))
-            .send().await.unwrap()
-            .error_for_status_code().unwrap();
-        
+            .body(json!({ "size": MAX_SHARD }))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status_code()
+            .unwrap();
         let json: Value = resp.json().await.unwrap();
         debug!("Raw Shards {}", json["hits"]["hits"]);
 

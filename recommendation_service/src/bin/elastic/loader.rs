@@ -1,40 +1,17 @@
 extern crate recommendation_service;
 
-use recommendation_service::recommendation::{
-    Location,
-    User
-};
+use recommendation_service::recommendation::User;
 
-use std::iter::Cycle;
-use std::vec::IntoIter;
-use recommendation_service::service::MainRecommendactionService;
 use recommendation_service::elastic::ops::ElasticOperator;
-use recommendation_service::location::sharding::GeoShardSearcher;
+use recommendation_service::service::MainRecommendactionService;
 
-use elasticsearch::{
-    BulkParts,
-    http::{
-        Url
-    },
-    http::transport::{
-        Transport,
-        ConnectionPool,
-        Connection
-    },
-    Elasticsearch,
-};
+use elasticsearch::{http::transport::Transport, Elasticsearch};
 
 use env_logger::init;
-use log::{
-    info,
-    debug
-};
+use log::{debug, info};
 
+use serde_json::{from_str, Value};
 use std::fs;
-use serde_json::{
-    from_str,
-    Value
-};
 
 #[tokio::main]
 async fn main() {
@@ -51,13 +28,11 @@ async fn main() {
         .collect();
 
     debug!("{:?}", users);
-    
-    let transport = Transport::single_node("http://localhost:9200").unwrap();
+
+    let transport = Transport::static_node(vec!["http://localhost:9200"]).unwrap();
     let client = Elasticsearch::new(transport);
     let elastic_operator = ElasticOperator::new(client);
-    
     let service = MainRecommendactionService::new(elastic_operator).await;
-    
-    // TODO Implement bulk load
+    // TODO Implement bulk load, can't because one node
     service.new_users(users).await;
 }

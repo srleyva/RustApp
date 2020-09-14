@@ -32,7 +32,7 @@ env_logger = "0.7"
 serde = "~1"
 serde_json = "~1"
 serde_derive = "~1"
-elasticsearch = { git = "https://github.com/elastic/elasticsearch-rs", branch="7.x"}
+elasticsearch = { git = "https://github.com/srleyva/elasticsearch-rs", branch="SniffNodePool"}
 futures = "*"
 
 [build-dependencies]
