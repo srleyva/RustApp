@@ -2,7 +2,14 @@ extern crate recommendation_service;
 
 use recommendation_service::recommendation::User;
 
+use recommendation_service::elastic::ops::{
+    build_geoshard_mapping_index, build_geosharded_indices,
+};
+
+use futures::join;
+
 use recommendation_service::elastic::ops::ElasticOperator;
+use recommendation_service::location::sharding::GeoshardBuilder;
 use recommendation_service::service::MainRecommendactionService;
 
 use elasticsearch::{http::transport::Transport, Elasticsearch};
@@ -27,10 +34,22 @@ async fn main() {
         .map(|h| serde_json::from_value(h.clone()).unwrap())
         .collect();
 
-    debug!("{:?}", users);
+    info!("generating Geoshards");
+    let shards = GeoshardBuilder::user_count_scorer(7, &users).build();
+    debug!("{:?}", shards);
 
-    let transport = Transport::static_node(vec!["http://localhost:9200"]).unwrap();
+    info!("ES @ http://localhost:9200");
+    let transport = Transport::single_node("http://localhost:9200").unwrap();
     let client = Elasticsearch::new(transport);
+
+    info!("Building Geoshard mapping index");
+    let create_mapping_ftr = build_geoshard_mapping_index(&client, &shards);
+
+    info!("Building Geoshard Indices");
+    let create_indices_ftr = build_geosharded_indices(&client, &shards);
+
+    join!(create_indices_ftr, create_mapping_ftr);
+
     let elastic_operator = ElasticOperator::new(client);
     let service = MainRecommendactionService::new(elastic_operator).await;
     // TODO Implement bulk load, can't because one node
