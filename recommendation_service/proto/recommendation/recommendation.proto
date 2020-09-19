@@ -33,8 +33,11 @@ enum Swipe {
     Right = 1;
 }
 
+// Swiper is Posting a Swipe on Swipee
 message SwipeRequest {
-    Swipe swipe = 1;
+    User swiper = 1;
+    User swipee = 2;
+    Swipe swipe = 3;
 }
 
 message SwipeResponse {
@@ -47,4 +50,5 @@ message GetQueueRequest {
     uint32 radius = 3;
     Gender gender = 4;
     repeated int32 age_range = 5 [packed=true];
+    string uid = 6;
 }

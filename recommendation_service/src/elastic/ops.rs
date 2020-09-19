@@ -114,9 +114,7 @@ impl ElasticOperator {
             }
           }
         });
-
-        info!("{}", query);
-
+        debug!("{}", query);
         let resp = self
             .client
             .search(SearchParts::Index(&indices.as_slice()))
@@ -125,7 +123,7 @@ impl ElasticOperator {
             .await
             .unwrap();
         let json: Value = resp.json().await.unwrap();
-        info!("{}", json);
+        debug!("{}", json);
         json["hits"]["hits"]
             .as_array()
             .unwrap()

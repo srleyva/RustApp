@@ -61,6 +61,9 @@ impl Stream for UserStream {
 impl RecommendationService for MainRecommendactionService {
     type GetQueueStream = UserStream;
 
+    /*
+    TODO: Redis caching for queue on UID
+    */
     async fn get_queue(
         &self,
         request: Request<GetQueueRequest>,
@@ -72,7 +75,11 @@ impl RecommendationService for MainRecommendactionService {
             request.radius,
         );
         let es_index: Vec<&str> = user_shards.into_iter().map(|x| x.name.as_str()).collect();
-        info!("User Query will hit {:?} shards", es_index);
+        info!(
+            "User {} queue query will hit {} shards",
+            request.uid,
+            es_index.len()
+        );
         let users = self
             .elastic_operator
             .get_users(
@@ -84,7 +91,6 @@ impl RecommendationService for MainRecommendactionService {
                 request.gender as u64,
             )
             .await;
-
         let user_stream = UserStream { users };
 
         Ok(Response::new(user_stream))

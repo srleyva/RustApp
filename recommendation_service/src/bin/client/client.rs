@@ -17,9 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     let mut client = RecommendationServiceClient::new(channel);
     let request = Request::new(GetQueueRequest {
+        uid: "541fe12b-e1ab-45e6-a558-d2ddaac310b6".to_string(),
         longitude: -132.8896,
         latitude: 67.7974,
-        radius: 100,
+        radius: 50,
         age_range: vec![21, 30],
         gender: Gender::Female as i32,
     });
