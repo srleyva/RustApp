@@ -5,7 +5,7 @@ use log::info;
 use tonic::Request;
 
 use recommendation_service::recommendation::{
-    recommendation_service_client::RecommendationServiceClient, GetQueueRequest,
+    recommendation_service_client::RecommendationServiceClient, Gender, GetQueueRequest,
 };
 
 #[tokio::main]
@@ -17,9 +17,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     let mut client = RecommendationServiceClient::new(channel);
     let request = Request::new(GetQueueRequest {
-        longitude: 47.6062,
-        latitude: 122.3321,
-        radius: 20,
+        longitude: -132.8896,
+        latitude: 67.7974,
+        radius: 100,
+        age_range: vec![21, 30],
+        gender: Gender::Female as i32,
     });
     let mut result = client.get_queue(request).await.unwrap().into_inner();
 

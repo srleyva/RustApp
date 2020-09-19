@@ -76,6 +76,64 @@ impl ElasticOperator {
         Self { client }
     }
 
+    pub async fn get_users(
+        &self,
+        indices: Vec<&str>,
+        lat: f64,
+        lon: f64,
+        distance: u32,
+        age_range: Vec<i32>,
+        gender: u64,
+    ) -> Vec<User> {
+        let query = json!({
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "range": {
+                    "age": {
+                      "gte": age_range[0],
+                      "lte": age_range[1]
+                    }
+                  }
+                }
+              ],
+              "filter": [
+                {
+                  "term": {
+                    "gender": gender
+                  }
+                },
+                {
+                  "geo_distance": {
+                    "distance": format!("{}mi", distance), // TODO: Metric support
+                    "location": { "lon": lon, "lat": lat }
+                  }
+                }
+              ]
+            }
+          }
+        });
+
+        info!("{}", query);
+
+        let resp = self
+            .client
+            .search(SearchParts::Index(&indices.as_slice()))
+            .body(query)
+            .send()
+            .await
+            .unwrap();
+        let json: Value = resp.json().await.unwrap();
+        info!("{}", json);
+        json["hits"]["hits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|h| serde_json::from_value(h["_source"].clone()).unwrap())
+            .collect()
+    }
+
     pub async fn write_user(&self, index: &str, user: User) {
         info!(
             "Writing User: {} {} to {}",

@@ -45,4 +45,6 @@ message GetQueueRequest {
     double longitude = 1;
     double latitude = 2;
     uint32 radius = 3;
+    Gender gender = 4;
+    repeated int32 age_range = 5 [packed=true];
 }

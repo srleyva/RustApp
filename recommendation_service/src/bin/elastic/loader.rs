@@ -7,7 +7,6 @@ use recommendation_service::elastic::ops::{
 };
 
 use futures::join;
-
 use recommendation_service::elastic::ops::ElasticOperator;
 use recommendation_service::location::sharding::GeoshardBuilder;
 use recommendation_service::service::MainRecommendactionService;

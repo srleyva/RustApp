@@ -194,7 +194,9 @@ pub fn generate_shards(cell_list: CellList) -> Vec<GeoShard> {
 
 pub fn cell_id_from_long_lat(long: f64, lat: f64, storage_level: u64) -> CellID {
     let long_lat = ll!(long, lat);
-    CellID::from(long_lat).parent(storage_level)
+    let cell_id = CellID::from(long_lat).parent(storage_level);
+    info!("Level: {}, Cell: {}", cell_id.level(), cell_id.to_token());
+    cell_id
 }
 
 pub fn cell_ids_from_radius(long: f64, lat: f64, storage_level: u64, radius: u32) -> Vec<CellID> {
@@ -257,8 +259,8 @@ impl GeoShardSearcher {
 
         for user in users {
             let index = self.get_shard_from_lng_lat(
-                user.location.as_ref().unwrap().latitude,
                 user.location.as_ref().unwrap().longitude,
+                user.location.as_ref().unwrap().latitude,
             );
             debug!(
                 "Creating User {} in shard {}",

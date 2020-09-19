@@ -1,7 +1,7 @@
 use super::elastic::ops::ElasticOperator;
 use super::recommendation::{
-    recommendation_service_server::RecommendationService, Gender, GetQueueRequest, Location,
-    SwipeRequest, SwipeResponse, User,
+    recommendation_service_server::RecommendationService, GetQueueRequest, SwipeRequest,
+    SwipeResponse, User,
 };
 use futures::{
     task::{Context, Poll},
@@ -31,8 +31,8 @@ impl MainRecommendactionService {
     pub async fn new_users(&self, users: Vec<User>) {
         for user in users {
             let shard = self.searcher.get_shard_from_lng_lat(
-                user.location.as_ref().unwrap().latitude,
                 user.location.as_ref().unwrap().longitude,
+                user.location.as_ref().unwrap().latitude,
             );
             self.elastic_operator.write_user(&shard.name, user).await;
         }
@@ -44,12 +44,6 @@ impl MainRecommendactionService {
 
 pub struct UserStream {
     users: Vec<User>,
-}
-
-impl Default for UserStream {
-    fn default() -> Self {
-        Self { users: vec![] }
-    }
 }
 
 impl Stream for UserStream {
@@ -77,78 +71,21 @@ impl RecommendationService for MainRecommendactionService {
             request.latitude,
             request.radius,
         );
-        let es_index = user_shards.into_iter().map(|x| &x.name);
-        info!("User Query will hit {} shards", es_index.len());
+        let es_index: Vec<&str> = user_shards.into_iter().map(|x| x.name.as_str()).collect();
+        info!("User Query will hit {:?} shards", es_index);
+        let users = self
+            .elastic_operator
+            .get_users(
+                es_index,
+                request.latitude,
+                request.longitude,
+                request.radius,
+                request.age_range,
+                request.gender as u64,
+            )
+            .await;
 
-        let user_stream = UserStream {
-            users: vec![
-                User {
-                    first_name: "Stephen".to_string(),
-                    last_name: "Leyva".to_string(),
-                    uid: "some-uid".to_string(),
-                    age: 32,
-                    gender: Gender::Male as i32,
-                    location: Some(Location {
-                        latitude: 47.6062,
-                        longitude: 122.3321,
-                    }),
-                    my_swipes: Vec::new(),
-                    potential_matches: Vec::new(),
-                },
-                User {
-                    first_name: "Stephen".to_string(),
-                    last_name: "Leyva".to_string(),
-                    uid: "some-uid".to_string(),
-                    age: 32,
-                    gender: Gender::Male as i32,
-                    location: Some(Location {
-                        latitude: 47.6062,
-                        longitude: 122.3321,
-                    }),
-                    my_swipes: Vec::new(),
-                    potential_matches: Vec::new(),
-                },
-                User {
-                    first_name: "Stephen".to_string(),
-                    last_name: "Leyva".to_string(),
-                    uid: "some-uid".to_string(),
-                    age: 32,
-                    gender: Gender::Male as i32,
-                    location: Some(Location {
-                        latitude: 47.6062,
-                        longitude: 122.3321,
-                    }),
-                    my_swipes: Vec::new(),
-                    potential_matches: Vec::new(),
-                },
-                User {
-                    first_name: "Stephen".to_string(),
-                    last_name: "Leyva".to_string(),
-                    uid: "some-uid".to_string(),
-                    age: 32,
-                    gender: Gender::Male as i32,
-                    location: Some(Location {
-                        latitude: 47.6062,
-                        longitude: 122.3321,
-                    }),
-                    my_swipes: Vec::new(),
-                    potential_matches: Vec::new(),
-                },
-                User {
-                    first_name: "Stephen".to_string(),
-                    last_name: "Leyva".to_string(),
-                    uid: "some-uid".to_string(),
-                    age: 32,
-                    gender: Gender::Male as i32,
-                    location: Some(Location {
-                        latitude: 47.6062,
-                        longitude: 122.3321,
-                    }),
-                    my_swipes: Vec::new(),
-                    potential_matches: Vec::new(),
-                },
-            ],
-        };
+        let user_stream = UserStream { users };
 
         Ok(Response::new(user_stream))
     }
