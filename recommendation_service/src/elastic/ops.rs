@@ -8,7 +8,7 @@ use elasticsearch::indices::IndicesCreateParts;
 use serde_json::value::Value;
 
 use elasticsearch::http::request::JsonBody;
-use elasticsearch::{BulkParts, CreateParts, Elasticsearch, SearchParts};
+use elasticsearch::{BulkParts, CreateParts, Elasticsearch, GetParts, SearchParts};
 
 pub async fn build_geoshard_mapping_index(client: &Elasticsearch, shards: &[GeoShard]) {
     info!(
@@ -76,6 +76,18 @@ impl ElasticOperator {
         Self { client }
     }
 
+    pub async fn get_user(&self, index: &str, uid: String) -> User {
+        let resp = self
+            .client
+            .get(GetParts::IndexId(&index, uid.as_str()))
+            .send()
+            .await
+            .unwrap();
+
+        let json: Value = resp.json().await.unwrap();
+        serde_json::from_value(json["_source"].clone()).unwrap()
+    }
+
     pub async fn get_users(
         &self,
         indices: Vec<&str>,
@@ -86,6 +98,7 @@ impl ElasticOperator {
         gender: u64,
     ) -> Vec<User> {
         let query = json!({
+          "from": 0, "size": 1000,
           "query": {
             "bool": {
               "must": [

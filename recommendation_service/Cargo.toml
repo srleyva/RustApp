@@ -18,6 +18,7 @@ name = "client"
 path = "./src/bin/client/client.rs"
 
 [dependencies]
+indicatif = "0.15"
 tonic = {version="0.3",features = ["tls"]}
 prost = "0.6"
 tokio = { version = "*", features = ["full"] }
@@ -28,7 +29,7 @@ env_logger = "0.7"
 serde = "~1"
 serde_json = "~1"
 serde_derive = "~1"
-elasticsearch = { git = "https://github.com/srleyva/elasticsearch-rs", branch="SniffNodePool"}
+elasticsearch = { path = "../../elasticsearch-rs/elasticsearch"}
 futures = "*"
 
 [build-dependencies]

@@ -91,6 +91,14 @@ impl RecommendationService for MainRecommendactionService {
                 request.gender as u64,
             )
             .await;
+
+        let user_index = self
+            .searcher
+            .get_shard_from_lng_lat(request.longitude, request.latitude);
+        let potential_matches = self
+            .elastic_operator
+            .get_user(&user_index.name.as_str(), request.uid);
+
         let user_stream = UserStream { users };
 
         Ok(Response::new(user_stream))
