@@ -29,16 +29,10 @@ impl MainRecommendactionService {
     }
 
     pub async fn new_users(&self, users: Vec<User>) {
-        for user in users {
-            let shard = self.searcher.get_shard_from_lng_lat(
-                user.location.as_ref().unwrap().longitude,
-                user.location.as_ref().unwrap().latitude,
-            );
-            self.elastic_operator.write_user(&shard.name, user).await;
+        for user_chunk in users.chunks(10000) {
+            let body = self.searcher.build_es_request(user_chunk);
+            self.elastic_operator.write_users(body).await;
         }
-        // Bulk write doesn't work due to SingleNodeConnectionPool
-        // let body = self.searcher.build_es_request(users);
-        // self.elastic_operator.write_users(body).await;
     }
 }
 

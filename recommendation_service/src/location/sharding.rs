@@ -195,7 +195,7 @@ pub fn generate_shards(cell_list: CellList) -> Vec<GeoShard> {
 pub fn cell_id_from_long_lat(long: f64, lat: f64, storage_level: u64) -> CellID {
     let long_lat = ll!(long, lat);
     let cell_id = CellID::from(long_lat).parent(storage_level);
-    info!("Level: {}, Cell: {}", cell_id.level(), cell_id.to_token());
+    debug!("Level: {}, Cell: {}", cell_id.level(), cell_id.to_token());
     cell_id
 }
 
@@ -254,7 +254,7 @@ impl GeoShardSearcher {
         geoshards
     }
 
-    pub fn build_es_request(&self, users: Vec<User>) -> Vec<JsonBody<serde_json::Value>> {
+    pub fn build_es_request(&self, users: &[User]) -> Vec<JsonBody<serde_json::Value>> {
         let mut body: Vec<JsonBody<_>> = Vec::with_capacity(4);
 
         for user in users {
